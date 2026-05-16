@@ -12,3 +12,13 @@ export type TutorRequest = {
 export interface TutorModelProvider {
   streamTutorResponse(input: TutorRequest): AsyncIterable<string>;
 }
+
+export type TranscriptionRequest = {
+  audioBase64: string;
+  mimeType: string;
+  languageHint?: string;
+};
+
+export interface TranscriptionProvider {
+  transcribe(input: TranscriptionRequest): Promise<string>;
+}

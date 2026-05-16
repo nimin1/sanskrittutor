@@ -1,7 +1,7 @@
-import type { TutorModelProvider } from "@/lib/ai/types";
+import type { TranscriptionProvider, TutorModelProvider } from "@/lib/ai/types";
 import { DeepSeekProvider } from "@/lib/ai/providers/deepseek";
 import { GeminiProvider } from "@/lib/ai/providers/gemini";
-import { OpenAICompatibleProvider } from "@/lib/ai/providers/openaiCompatible";
+import { GeminiTranscriptionProvider } from "@/lib/ai/providers/geminiTranscribe";
 
 export function getTutorProvider(hasImage: boolean = false): TutorModelProvider {
   // --- INTELLIGENT ROUTER ---
@@ -19,5 +19,14 @@ export function getTutorProvider(hasImage: boolean = false): TutorModelProvider 
     apiKey: process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY || "",
     model: "deepseek-chat",
     baseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
+  });
+}
+
+export function getTranscriptionProvider(): TranscriptionProvider {
+  // Gemini handles Malayalam audio well and uses the same key as the vision path.
+  return new GeminiTranscriptionProvider({
+    apiKey: process.env.GEMINI_API_KEY || process.env.AI_API_KEY || "",
+    model: process.env.TRANSCRIBE_MODEL || "gemini-2.5-flash",
+    baseUrl: process.env.AI_BASE_URL,
   });
 }
