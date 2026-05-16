@@ -1,4 +1,6 @@
 import { getTranscriptionProvider } from "@/lib/ai";
+import { isProviderRateLimitError } from "@/lib/ai/types";
+import { cacheKey, getCached, setCached } from "@/lib/cache/serverCache";
 import { ml } from "@/lib/i18n/ml";
 
 export const runtime = "nodejs";
@@ -29,6 +31,12 @@ export async function POST(request: Request) {
 
     const mimeType = file.type || "audio/webm";
     const buffer = Buffer.from(await file.arrayBuffer());
+    const key = cacheKey("stt", buffer);
+    const cached = getCached<string>(key);
+    if (cached) {
+      return json({ text: cached });
+    }
+
     const audioBase64 = buffer.toString("base64");
 
     const provider = getTranscriptionProvider();
@@ -37,9 +45,16 @@ export async function POST(request: Request) {
       mimeType,
       languageHint: "ml",
     });
+    if (text.trim()) {
+      setCached(key, text.trim(), 24 * 60 * 60 * 1000);
+    }
 
     return json({ text: text.trim() });
   } catch (err) {
+    if (isProviderRateLimitError(err)) {
+      return json({ error: ml.home.transcribeLimitReached }, 429);
+    }
+
     const message = err instanceof Error ? err.message : String(err);
     /* Never expose stack/key material — just log server-side & return canonical message. */
     console.error("[/api/transcribe]", message);

@@ -6,7 +6,9 @@ import { ChatTranscript } from "@/components/ChatTranscript";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { IconCamera, IconMic, IconPlus, IconSend, IconStop } from "@/components/Icons";
 import { LoadingMessage } from "@/components/LoadingMessage";
+import { MalayalamTextInput } from "@/components/MalayalamTextInput";
 import type { TutorMessage } from "@/lib/ai/types";
+import { useMicAmplitude } from "@/lib/audio/useMicAmplitude";
 import type { TutorChatMessage } from "@/lib/db";
 import { ml } from "@/lib/i18n/ml";
 
@@ -29,6 +31,13 @@ export default function HomePage() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const reviewFieldRef = useRef<HTMLTextAreaElement>(null);
+
+  /* Mic button refs + live stream state for amplitude visualization */
+  const stageMicRef = useRef<HTMLButtonElement | null>(null);
+  const chatMicRef = useRef<HTMLButtonElement | null>(null);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
+  useMicAmplitude(liveStream, stageMicRef.current);
+  useMicAmplitude(liveStream, chatMicRef.current);
 
   useEffect(() => {
     setVoiceSupported(isMicCapable());
@@ -58,6 +67,7 @@ export default function HomePage() {
     streamRef.current = null;
     mediaRecorderRef.current = null;
     chunksRef.current = [];
+    setLiveStream(null);
   }
 
   async function startRecording() {
@@ -76,6 +86,7 @@ export default function HomePage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      setLiveStream(stream);
 
       const mimeType = pickMimeType();
       const recorder = mimeType
@@ -139,8 +150,8 @@ export default function HomePage() {
       }
       updateTranscript(text);
       setPhase("review");
-    } catch {
-      setError(ml.home.transcribeFailed);
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : ml.home.transcribeFailed);
       setPhase("idle");
     }
   }
@@ -212,15 +223,17 @@ export default function HomePage() {
     return (
       <section className="stage">
         {reviewing ? (
-          <ReviewCard
-            text={transcript}
-            fieldRef={reviewFieldRef}
-            onChange={updateTranscript}
-            onSubmit={submitFromReview}
-            onReRecord={reRecord}
-            onCancel={cancelReview}
-            busy={busy}
-          />
+          <div key="review" className="phase-shift" style={{ width: "100%" }}>
+            <ReviewCard
+              text={transcript}
+              fieldRef={reviewFieldRef}
+              onChange={updateTranscript}
+              onSubmit={submitFromReview}
+              onReRecord={reRecord}
+              onCancel={cancelReview}
+              busy={busy}
+            />
+          </div>
         ) : (
           <>
             <p className="stage__greeting">{ml.home.greeting}</p>
@@ -229,6 +242,7 @@ export default function HomePage() {
             </div>
 
             <button
+              ref={stageMicRef}
               type="button"
               className={`stage__mic ${recording ? "stage__mic--recording" : ""}`}
               onClick={recording ? stopRecording : startRecording}
@@ -247,8 +261,10 @@ export default function HomePage() {
             </p>
 
             {transcribing ? (
-              <div className="thinking" style={{ marginTop: 18 }}>
-                <span className="thinking__pen" aria-hidden />
+              <div className="thinking phase-shift" style={{ marginTop: 18 }}>
+                <span className="dots" aria-hidden>
+                  <span /><span /><span />
+                </span>
               </div>
             ) : null}
 
@@ -286,18 +302,21 @@ export default function HomePage() {
 
       <div className="chat-foot">
         {reviewing ? (
-          <ReviewCard
-            text={transcript}
-            fieldRef={reviewFieldRef}
-            onChange={updateTranscript}
-            onSubmit={submitFromReview}
-            onReRecord={reRecord}
-            onCancel={cancelReview}
-            busy={busy}
-          />
+          <div key="chat-review" className="phase-shift" style={{ width: "100%" }}>
+            <ReviewCard
+              text={transcript}
+              fieldRef={reviewFieldRef}
+              onChange={updateTranscript}
+              onSubmit={submitFromReview}
+              onReRecord={reRecord}
+              onCancel={cancelReview}
+              busy={busy}
+            />
+          </div>
         ) : (
           <>
             <button
+              ref={chatMicRef}
               type="button"
               className={`chat-mic ${recording ? "chat-mic--recording" : ""}`}
               onClick={recording ? stopRecording : startRecording}
@@ -343,12 +362,12 @@ function ReviewCard({
           {ml.common.cancel}
         </button>
       </div>
-      <textarea
-        ref={fieldRef}
+      <MalayalamTextInput
+        inputRef={fieldRef}
         className="review__field"
         value={text}
         rows={3}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmit(); }
         }}

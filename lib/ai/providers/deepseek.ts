@@ -40,7 +40,8 @@ export class DeepSeekProvider implements TutorModelProvider {
         model: this.config.model || "deepseek-chat",
         messages: buildDeepSeekMessages(input),
         stream: true,
-        temperature: 0.35,
+        temperature: 0.2,
+        top_p: 0.85,
         max_tokens: 1400,
       }),
     });

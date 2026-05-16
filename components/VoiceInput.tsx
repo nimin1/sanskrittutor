@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconMic, IconStop } from "@/components/Icons";
+import { useMicAmplitude } from "@/lib/audio/useMicAmplitude";
 import { ml } from "@/lib/i18n/ml";
+
+
 
 type State = "idle" | "recording" | "transcribing";
 
@@ -23,6 +26,9 @@ export function VoiceInput({ onText }: { onText: (text: string) => void }) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
+  useMicAmplitude(liveStream, buttonRef.current);
 
   useEffect(() => {
     setSupported(isMicCapable());
@@ -34,6 +40,7 @@ export function VoiceInput({ onText }: { onText: (text: string) => void }) {
     streamRef.current = null;
     recorderRef.current = null;
     chunksRef.current = [];
+    setLiveStream(null);
   }
 
   async function startListening() {
@@ -50,6 +57,7 @@ export function VoiceInput({ onText }: { onText: (text: string) => void }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      setLiveStream(stream);
 
       const mimeType = pickMimeType();
       const recorder = mimeType
@@ -100,8 +108,8 @@ export function VoiceInput({ onText }: { onText: (text: string) => void }) {
       const text = (data.text || "").trim();
       if (text) onText(text);
       else setError(ml.home.transcribeFailed);
-    } catch {
-      setError(ml.home.transcribeFailed);
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : ml.home.transcribeFailed);
     } finally {
       setState("idle");
     }
@@ -113,7 +121,8 @@ export function VoiceInput({ onText }: { onText: (text: string) => void }) {
   return (
     <div className="stack stack--sm">
       <button
-        className={`btn ${recording ? "btn--danger" : "btn--secondary"}`}
+        ref={buttonRef}
+        className={`btn ${recording ? "btn--danger btn--listening" : "btn--secondary"}`}
         type="button"
         onClick={recording ? handleStop : startListening}
         disabled={!supported || transcribing}

@@ -6,6 +6,7 @@ import { ErrorMessage } from "@/components/ErrorMessage";
 import {
   IconBook, IconCheck, IconLightbulb, IconQuiz, IconRefresh, IconSend,
 } from "@/components/Icons";
+import { MalayalamTextInput } from "@/components/MalayalamTextInput";
 import { PhotoPreview } from "@/components/PhotoPreview";
 import { QuizCard } from "@/components/QuizCard";
 import { VoiceInput } from "@/components/VoiceInput";
@@ -256,10 +257,9 @@ export default function SnapPage() {
             <section style={{ marginTop: 32 }} className="stack">
               <div className="section-eyebrow">{ml.snap.followUpLabel}</div>
               <VoiceInput onText={setQuestion} />
-              <textarea
-                className="field field--textarea"
+              <MalayalamTextInput
                 value={question}
-                onChange={(e) => setQuestion(e.target.value)}
+                onChange={setQuestion}
                 placeholder={ml.snap.questionPlaceholder}
               />
               <div className="row" style={{ gap: 12 }}>

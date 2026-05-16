@@ -1,4 +1,4 @@
-import type { TranscriptionProvider, TranscriptionRequest } from "@/lib/ai/types";
+import { ProviderRateLimitError, type TranscriptionProvider, type TranscriptionRequest } from "@/lib/ai/types";
 
 type Config = {
   apiKey: string;
@@ -53,6 +53,10 @@ export class GeminiTranscriptionProvider implements TranscriptionProvider {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+
+    if (res.status === 429) {
+      throw new ProviderRateLimitError("Gemini transcription rate limit reached.");
+    }
 
     if (!res.ok) {
       const errText = await safeReadText(res);

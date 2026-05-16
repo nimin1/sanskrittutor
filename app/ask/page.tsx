@@ -5,6 +5,7 @@ import { ChatTranscript } from "@/components/ChatTranscript";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { IconPlus, IconSend } from "@/components/Icons";
 import { LoadingMessage } from "@/components/LoadingMessage";
+import { MalayalamTextInput } from "@/components/MalayalamTextInput";
 import { VoiceInput } from "@/components/VoiceInput";
 import type { TutorMessage } from "@/lib/ai/types";
 import type { TutorChatMessage } from "@/lib/db";
@@ -67,10 +68,9 @@ export default function AskPage() {
 
       <div className="stack stack--md">
         <VoiceInput onText={setQuestion} />
-        <textarea
-          className="field field--textarea"
+        <MalayalamTextInput
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={setQuestion}
           placeholder={ml.ask.placeholder}
         />
         <button className="btn btn--primary" disabled={busy || !question.trim()} onClick={sendQuestion}>

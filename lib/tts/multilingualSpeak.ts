@@ -13,6 +13,11 @@
 // ── Script detection regex ──────────────────────────────────────────
 const DEVANAGARI_RE = /[\u0900-\u097F]/;
 const MALAYALAM_RE = /[\u0D00-\u0D7F]/;
+const HARD_PAUSE_RE = /[.!?।॥]/;
+const SOFT_PAUSE_RE = /[,;:]/;
+const SHORT_SCRIPT_PAUSE_MS = 160;
+const SOFT_PAUSE_MS = 320;
+const HARD_PAUSE_MS = 620;
 
 type ScriptKind = "devanagari" | "malayalam" | "neutral";
 
@@ -22,23 +27,75 @@ function detectScript(char: string): ScriptKind {
   return "neutral";
 }
 
-interface TextSegment {
+interface SpeechSegment {
+  kind: "speech";
   text: string;
   script: ScriptKind;
 }
 
+interface PauseSegment {
+  kind: "pause";
+  duration: number;
+}
+
+type TextSegment = SpeechSegment | PauseSegment;
+
 /**
- * Split text into contiguous segments of the same script.
- * Neutral chars (spaces, punctuation, numbers) are merged into the
- * preceding segment so we don't create tiny pauses between words.
+ * Split text into speakable phrases. We preserve punctuation as pauses
+ * instead of sending it to the voice engine, because several browser voices
+ * read punctuation aloud in Malayalam/Sanskrit.
  */
 function splitByScript(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
   let current = "";
   let currentScript: ScriptKind = "neutral";
 
+  function pushSpeech(nextScript: ScriptKind = "malayalam") {
+    const speakable = cleanSegmentText(current);
+    if (speakable) {
+      segments.push({
+        kind: "speech",
+        text: speakable,
+        script: currentScript === "neutral" ? nextScript : currentScript,
+      });
+    }
+    current = "";
+  }
+
+  function pushPause(duration: number) {
+    const previous = segments[segments.length - 1];
+    if (previous?.kind === "pause") {
+      previous.duration = Math.max(previous.duration, duration);
+      return;
+    }
+    if (segments.length > 0) {
+      segments.push({ kind: "pause", duration });
+    }
+  }
+
   for (const char of text) {
     const s = detectScript(char);
+
+    if (char === "\n") {
+      pushSpeech();
+      pushPause(HARD_PAUSE_MS);
+      currentScript = "neutral";
+      continue;
+    }
+
+    if (HARD_PAUSE_RE.test(char)) {
+      pushSpeech();
+      pushPause(HARD_PAUSE_MS);
+      currentScript = "neutral";
+      continue;
+    }
+
+    if (SOFT_PAUSE_RE.test(char)) {
+      pushSpeech();
+      pushPause(SOFT_PAUSE_MS);
+      currentScript = "neutral";
+      continue;
+    }
 
     if (s === "neutral") {
       // Neutral chars stick with whatever segment is active
@@ -49,39 +106,46 @@ function splitByScript(text: string): TextSegment[] {
     if (s === currentScript) {
       current += char;
     } else {
-      // Script changed — push the previous segment
-      if (current.trim()) {
-        segments.push({ text: current.trim(), script: currentScript === "neutral" ? s : currentScript });
-      }
+      pushSpeech(s);
+      pushPause(SHORT_SCRIPT_PAUSE_MS);
       current = char;
       currentScript = s;
     }
   }
 
-  // Push the final segment
-  if (current.trim()) {
-    segments.push({ text: current.trim(), script: currentScript });
-  }
+  pushSpeech();
 
   return segments;
 }
 
 /**
- * Clean text for TTS: strip emojis, markdown artifacts, and excess punctuation.
+ * Clean the full text while keeping sentence punctuation for pause detection.
  */
 function cleanForTTS(text: string): string {
   return text
+    .replace(/<\/?speak>/gi, " ")
     // Remove emojis
     .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
     // Remove markdown bold/italic markers
-    .replace(/\*{1,3}/g, "")
-    // Replace ALL punctuation that the TTS might read out loud (including periods) with spaces
-    .replace(/[.,?।॥\-—:;!]/g, " ")
-    // STRICT: Keep ONLY letters, combining marks (vowels/viramas), numbers, and whitespace. No punctuation at all.
+    .replace(/[*_`#>]/g, " ")
+    .replace(/[()[\]{}"“”'‘’]/g, " ")
+    .replace(/[—–-]/g, ", ")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function cleanSegmentText(text: string): string {
+  return text
+    .replace(/[.,?।॥:;!]/g, " ")
     .replace(/[^\p{L}\p{M}\p{N}\s]/gu, " ")
-    // Collapse spaces
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 // ── Voice caching ───────────────────────────────────────────────────
@@ -119,25 +183,49 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
 // ── Voice selection ─────────────────────────────────────────────────
 
 function findMalayalamVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  const preferred = voices
+    .filter((voice) => voice.lang.toLowerCase().startsWith("ml") || voice.name.toLowerCase().includes("malayalam"))
+    .sort(compareVoiceQuality);
+
   return (
-    voices.find((v) => v.name.toLowerCase().includes("lekha")) || // macOS Malayalam
-    voices.find((v) => v.name.toLowerCase().includes("malayalam")) ||
-    voices.find((v) => v.lang === "ml-IN") ||
-    voices.find((v) => v.lang.startsWith("ml")) ||
+    preferred[0] ||
+    voices.find((v) => v.name.toLowerCase().includes("lekha")) ||
     null
   );
 }
 
 function findSanskritVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   // Sanskrit voices are rare; Hindi voices read Devanagari perfectly.
+  const preferred = voices
+    .filter((voice) => {
+      const name = voice.name.toLowerCase();
+      const lang = voice.lang.toLowerCase();
+      return lang.startsWith("sa") || lang.startsWith("hi") || name.includes("sanskrit") || name.includes("hindi");
+    })
+    .sort(compareVoiceQuality);
+
   return (
-    voices.find((v) => v.lang === "sa-IN") || // Sanskrit (unlikely but ideal)
-    voices.find((v) => v.name.toLowerCase().includes("sanskrit")) ||
-    voices.find((v) => v.name.toLowerCase().includes("lekha") === false && v.lang === "hi-IN") || // Hindi
-    voices.find((v) => v.lang === "hi-IN") ||
-    voices.find((v) => v.lang.startsWith("hi")) ||
+    preferred.find((v) => v.lang.toLowerCase().startsWith("sa")) ||
+    preferred[0] ||
     null
   );
+}
+
+function compareVoiceQuality(a: SpeechSynthesisVoice, b: SpeechSynthesisVoice) {
+  return voiceScore(b) - voiceScore(a);
+}
+
+function voiceScore(voice: SpeechSynthesisVoice) {
+  const name = voice.name.toLowerCase();
+  let score = 0;
+
+  if (voice.localService) score += 2;
+  if (name.includes("enhanced") || name.includes("premium")) score += 6;
+  if (name.includes("google") || name.includes("microsoft") || name.includes("apple")) score += 4;
+  if (name.includes("lekha")) score += 5;
+  if (name.includes("compact")) score -= 4;
+
+  return score;
 }
 
 // ── Public API ───────────────────────────────────────────────────────
@@ -147,7 +235,7 @@ export interface MultiSpeakOptions {
   onEnd?: () => void;
   /** Called on error */
   onError?: () => void;
-  /** Speech rate (default 0.88) */
+  /** Speech rate (default 0.78) */
   rate?: number;
 }
 
@@ -156,7 +244,7 @@ export interface MultiSpeakOptions {
  * Returns a cancel function.
  */
 export function multilingualSpeak(rawText: string, options: MultiSpeakOptions = {}): () => void {
-  const { onEnd, onError, rate = 0.88 } = options;
+  const { onEnd, onError, rate = 0.78 } = options;
 
   if (!rawText.trim() || typeof window === "undefined" || !window.speechSynthesis) {
     onEnd?.();
@@ -188,6 +276,11 @@ export function multilingualSpeak(rawText: string, options: MultiSpeakOptions = 
     for (let i = 0; i < segments.length; i++) {
       if (cancelled) break;
       const seg = segments[i];
+
+      if (seg.kind === "pause") {
+        await wait(seg.duration);
+        continue;
+      }
 
       await new Promise<void>((resolve, reject) => {
         if (cancelled) { resolve(); return; }

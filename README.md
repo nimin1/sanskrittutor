@@ -33,31 +33,35 @@ Then open `http://localhost:3000`.
 Copy `.env.example` to `.env.local` and fill in your provider key.
 
 ```env
-AI_PROVIDER=gemini
-AI_MODEL=gemini-2.5-flash
-AI_API_KEY=
-AI_BASE_URL=
+DEEPSEEK_API_KEY=
+SARVAM_API_KEY=
+GEMINI_API_KEY=
+OPENAI_API_KEY=
 ```
 
-For OpenAI-compatible APIs, set:
+The app uses a capability router:
+
+- Sarvam first for Malayalam speech-to-text, OCR/document extraction, and Malayalam text-to-speech.
+- Gemini as fallback for OCR and speech-to-text.
+- DeepSeek first for normal Sanskrit tutoring responses.
+- OpenAI as fallback for transcription, OCR/vision, tutor responses, and TTS.
+
+Useful optional overrides:
 
 ```env
-AI_PROVIDER=openai-compatible
-AI_MODEL=your-model
-AI_BASE_URL=https://api.openai.com/v1
-AI_API_KEY=
+DEEPSEEK_MODEL=deepseek-chat
+SARVAM_STT_MODEL=saaras:v3
+SARVAM_TTS_MODEL=bulbul:v3
+SARVAM_TTS_SPEAKER=kavitha
+GEMINI_OCR_MODEL=gemini-2.5-flash-lite
+TRANSCRIBE_MODEL=gemini-2.5-flash
+OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe
+OPENAI_VISION_MODEL=gpt-4o-mini
+OPENAI_TUTOR_MODEL=gpt-4o-mini
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
 ```
 
-For DeepSeek, set:
-
-```env
-AI_PROVIDER=deepseek
-AI_MODEL=deepseek-chat
-AI_BASE_URL=https://api.deepseek.com
-AI_API_KEY=your_deepseek_api_key
-```
-
-DeepSeek is wired through its OpenAI-compatible chat completions API. Use it for text doubts and follow-up tutoring. The photo-reading flow still needs a vision-capable model; if DeepSeek vision is not available on your account/model, use Gemini or another vision provider for `Snap & Explain`.
+Photo reading is OCR-first: the app extracts text from the image, then asks DeepSeek to teach from that extracted Sanskrit text. This keeps image-provider usage lower and makes fallbacks easier.
 
 ## Product Principle
 

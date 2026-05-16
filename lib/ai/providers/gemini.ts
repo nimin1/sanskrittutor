@@ -1,4 +1,4 @@
-import type { TutorModelProvider, TutorRequest } from "@/lib/ai/types";
+import { ProviderRateLimitError, type TutorModelProvider, type TutorRequest } from "@/lib/ai/types";
 import { SANSKRIT_TUTOR_SYSTEM_PROMPT } from "@/lib/prompts/sanskritTutor";
 
 type GeminiConfig = {
@@ -48,7 +48,8 @@ export class GeminiProvider implements TutorModelProvider {
       systemInstruction: { parts: [{ text: SANSKRIT_TUTOR_SYSTEM_PROMPT }] },
       contents,
       generationConfig: {
-        temperature: 0.25,
+        temperature: 0.2,
+        topP: 0.85,
         maxOutputTokens: 1400,
       },
     };
@@ -71,6 +72,10 @@ export class GeminiProvider implements TutorModelProvider {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestPayload),
       });
+    }
+
+    if (response.status === 429) {
+      throw new ProviderRateLimitError("Gemini tutor rate limit reached.");
     }
 
     if (!response.ok || !response.body) {
