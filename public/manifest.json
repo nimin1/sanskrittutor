@@ -1,0 +1,17 @@
+{
+  "name": "സംസ്കൃതം ഗുരു",
+  "short_name": "സംസ്കൃതം",
+  "description": "AI-powered voice-first Sanskrit tutor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf6ee",
+  "theme_color": "#0d7377",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
