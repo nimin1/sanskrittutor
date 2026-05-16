@@ -69,6 +69,7 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -77,6 +78,7 @@ body {
   color: var(--ink);
   line-height: 1.6;
   overscroll-behavior-y: contain;
+  overflow-x: hidden;
   /* very subtle paper grain so flat surfaces don't feel sterile */
   background-image:
     radial-gradient(circle at 18% 22%, rgba(28,24,20,0.018) 0px, transparent 1px),
@@ -99,8 +101,8 @@ img, svg { display: block; max-width: 100%; }
 
 .topbar {
   position: sticky; top: 0; z-index: 30;
-  height: var(--topbar-h);
-  padding: 0 var(--pad-x);
+  height: calc(var(--topbar-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(var(--pad-x), env(safe-area-inset-right)) 0 max(var(--pad-x), env(safe-area-inset-left));
   background: var(--paper);
   border-bottom: 1px solid var(--rule);
 }
@@ -168,7 +170,7 @@ img, svg { display: block; max-width: 100%; }
   width: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
-  padding: 40px var(--pad-x) 120px;
+  padding: 40px max(var(--pad-x), env(safe-area-inset-right)) 120px max(var(--pad-x), env(safe-area-inset-left));
 }
 
 /* ============================================================
@@ -215,8 +217,8 @@ img, svg { display: block; max-width: 100%; }
 .stack--sm { gap: 10px; }
 .stack--md { gap: 14px; }
 .stack--lg { gap: 32px; }
-.row { display: flex; align-items: center; gap: 12px; }
-.row--between { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.row--between { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 
 /* Subtle section heading used inside pages */
 .section-eyebrow {
@@ -658,14 +660,14 @@ img, svg { display: block; max-width: 100%; }
    ============================================================ */
 .chat-foot {
   position: sticky;
-  bottom: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
   z-index: 20;
   margin-top: 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  padding: 0;
+  padding: 0 max(var(--pad-x), env(safe-area-inset-right)) 0 max(var(--pad-x), env(safe-area-inset-left));
 }
 .chat-mic {
   width: 76px;
@@ -1008,5 +1010,8 @@ img, svg { display: block; max-width: 100%; }
 @media (max-width: 480px) {
   :root { --pad-x: 18px; }
   html { font-size: 16px; }
-  .shell__main { padding-top: 28px; padding-bottom: 100px; }
+  .shell__main { 
+    padding-top: 28px; 
+    padding-bottom: max(100px, env(safe-area-inset-bottom)); 
+  }
 }
