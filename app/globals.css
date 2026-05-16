@@ -69,7 +69,6 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
 }
 
 body {
@@ -77,8 +76,6 @@ body {
   background: var(--paper);
   color: var(--ink);
   line-height: 1.6;
-  overscroll-behavior-y: contain;
-  overflow-x: hidden;
   /* very subtle paper grain so flat surfaces don't feel sterile */
   background-image:
     radial-gradient(circle at 18% 22%, rgba(28,24,20,0.018) 0px, transparent 1px),
@@ -97,7 +94,7 @@ img, svg { display: block; max-width: 100%; }
 /* ============================================================
    APP SHELL  — top wordmark + horizontal text nav (no bottom nav)
    ============================================================ */
-.shell { min-height: 100dvh; display: flex; flex-direction: column; }
+.shell { min-height: 100dvh; display: flex; flex-direction: column; overflow-x: hidden; }
 
 .topbar {
   position: sticky; top: 0; z-index: 30;
