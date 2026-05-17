@@ -111,7 +111,7 @@ export function getSpeakProvider(): SpeakProvider {
       provider: new SarvamSpeakProvider({
         apiKey: process.env.SARVAM_API_KEY || "",
         model: process.env.SARVAM_TTS_MODEL || "bulbul:v3",
-        speaker: process.env.SARVAM_TTS_SPEAKER || "kavitha",
+        speaker: process.env.SARVAM_TTS_SPEAKER || "ishita",
         baseUrl: process.env.SARVAM_BASE_URL,
       }),
     },

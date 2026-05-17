@@ -8,6 +8,7 @@ import { LoadingMessage } from "@/components/LoadingMessage";
 import { MalayalamTextInput } from "@/components/MalayalamTextInput";
 import { VoiceInput } from "@/components/VoiceInput";
 import type { TutorMessage } from "@/lib/ai/types";
+import { primeAudio } from "@/lib/audio/sharedAudio";
 import type { TutorChatMessage } from "@/lib/db";
 import { ml } from "@/lib/i18n/ml";
 
@@ -16,10 +17,12 @@ export default function AskPage() {
   const [messages, setMessages] = useState<TutorChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [autoSpeakId, setAutoSpeakId] = useState<string | null>(null);
 
   async function sendQuestion() {
     const text = question.trim();
     if (!text) return;
+    primeAudio();
     const userMessage = makeMessage("user", text);
     const assistantMessage = makeMessage("assistant", "");
     const nextMessages = [...messages, userMessage];
@@ -27,6 +30,7 @@ export default function AskPage() {
     setQuestion("");
     setBusy(true);
     setError("");
+    setAutoSpeakId(null);
 
     try {
       const response = await fetch("/api/tutor", {
@@ -44,6 +48,7 @@ export default function AskPage() {
         assistantText += decoder.decode(value, { stream: true });
         setMessages([...nextMessages, { ...assistantMessage, content: assistantText }]);
       }
+      if (assistantText.trim()) setAutoSpeakId(assistantMessage.id);
     } catch {
       setError(ml.errors.aiFailed);
     } finally {
@@ -55,6 +60,7 @@ export default function AskPage() {
     setQuestion("");
     setMessages([]);
     setError("");
+    setAutoSpeakId(null);
   }
 
   return (
@@ -81,7 +87,7 @@ export default function AskPage() {
       <div style={{ marginTop: 32 }} className="stack stack--lg">
         <ErrorMessage message={error} />
         {busy ? <LoadingMessage message={ml.common.pleaseWait} /> : null}
-        <ChatTranscript messages={messages} />
+        <ChatTranscript messages={messages} autoSpeakMessageId={autoSpeakId} />
         {messages.length > 0 && !busy ? (
           <button className="btn btn--ghost btn--sm" onClick={askAnother}>
             <IconPlus size={14} /> {ml.ask.another}

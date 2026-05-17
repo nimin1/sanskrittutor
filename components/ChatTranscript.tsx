@@ -6,13 +6,20 @@ import { SpeakButton } from "@/components/SpeakButton";
 import type { TutorChatMessage } from "@/lib/db";
 import { ml } from "@/lib/i18n/ml";
 
-export function ChatTranscript({ messages }: { messages: TutorChatMessage[] }) {
+export function ChatTranscript({
+  messages,
+  autoSpeakMessageId,
+}: {
+  messages: TutorChatMessage[];
+  autoSpeakMessageId?: string | null;
+}) {
   if (messages.length === 0) return null;
 
   function spokenText(content: string) {
-    const match = content.match(/<speak>([\s\S]*?)<\/speak>/i);
-    const inner = match ? match[1] : content;
-    return stripUncertaintyTags(inner).trim();
+    // Speak the entire answer. Older messages may still contain <speak> tags
+    // from the previous prompt design — strip them so they aren't read aloud.
+    const stripped = content.replace(/<\/?speak>/gi, "");
+    return stripUncertaintyTags(stripped).trim();
   }
   function displayText(content: string) {
     return content.replace(/<\/?speak>/gi, "");
@@ -26,6 +33,7 @@ export function ChatTranscript({ messages }: { messages: TutorChatMessage[] }) {
           message={message}
           body={displayText(message.content)}
           speak={spokenText(message.content)}
+          autoSpeak={!!autoSpeakMessageId && message.id === autoSpeakMessageId}
         />
       ))}
     </div>
@@ -92,10 +100,12 @@ function Turn({
   message,
   body,
   speak,
+  autoSpeak,
 }: {
   message: TutorChatMessage;
   body: string;
   speak: string;
+  autoSpeak: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -122,7 +132,7 @@ function Turn({
       </div>
       {!isUser && body ? (
         <div className="turn__actions">
-          <SpeakButton text={speak} />
+          <SpeakButton text={speak} autoPlay={autoSpeak} />
           <button className="btn btn--sm btn--ghost" type="button" onClick={copy}>
             {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
             {copied ? ml.common.copied : ml.common.copy}

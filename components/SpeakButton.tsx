@@ -3,21 +3,34 @@
 import { useEffect, useRef, useState } from "react";
 import { IconVolume, IconVolumeOff } from "@/components/Icons";
 import { ml } from "@/lib/i18n/ml";
+import { playOnSharedAudio, stopSharedAudio } from "@/lib/audio/sharedAudio";
 import { multilingualSpeak, stopSpeaking } from "@/lib/tts/multilingualSpeak";
 
 type Status = "idle" | "loading" | "playing";
 
-export function SpeakButton({ text }: { text: string }) {
+export function SpeakButton({ text, autoPlay = false }: { text: string; autoPlay?: boolean }) {
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const cancelRef = useRef<(() => void) | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const requestRef = useRef<AbortController | null>(null);
+  const autoPlayedRef = useRef(false);
 
   useEffect(() => {
     setSupported(typeof window !== "undefined");
     return () => { stopPlayback(); };
   }, []);
+
+  // Auto-play once when the parent marks this message as ready to speak.
+  // Browsers gate audio behind a recent user gesture; on the Ask/Snap pages
+  // the Send button click provides that activation, so playback succeeds.
+  useEffect(() => {
+    if (!autoPlay || autoPlayedRef.current) return;
+    if (!text.trim()) return;
+    autoPlayedRef.current = true;
+    void speak();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay, text]);
 
   if (!supported || !text.trim()) return null;
 
@@ -40,11 +53,11 @@ export function SpeakButton({ text }: { text: string }) {
       const data = (await response.json().catch(() => ({}))) as { audioBase64?: string; mimeType?: string };
       if (!response.ok || !data.audioBase64) throw new Error("TTS API unavailable");
 
-      const audio = new Audio(`data:${data.mimeType || "audio/mpeg"};base64,${data.audioBase64}`);
+      const src = `data:${data.mimeType || "audio/mpeg"};base64,${data.audioBase64}`;
+      const audio = await playOnSharedAudio(src);
       audioRef.current = audio;
       audio.onended = () => setStatus("idle");
       audio.onerror = () => fallbackSpeak();
-      await audio.play();
       setStatus("playing");
     } catch (err) {
       if ((err as { name?: string } | null)?.name !== "AbortError") {
@@ -66,8 +79,7 @@ export function SpeakButton({ text }: { text: string }) {
   function stopPlayback() {
     requestRef.current?.abort();
     requestRef.current = null;
-    audioRef.current?.pause();
-    if (audioRef.current) audioRef.current.currentTime = 0;
+    stopSharedAudio();
     audioRef.current = null;
     cancelRef.current?.();
     cancelRef.current = null;

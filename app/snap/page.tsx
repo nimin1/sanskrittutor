@@ -11,6 +11,7 @@ import { PhotoPreview } from "@/components/PhotoPreview";
 import { QuizCard } from "@/components/QuizCard";
 import { VoiceInput } from "@/components/VoiceInput";
 import type { TutorMessage } from "@/lib/ai/types";
+import { primeAudio } from "@/lib/audio/sharedAudio";
 import type { QuizAttempt, StudySession, TutorChatMessage } from "@/lib/db";
 import { saveSession } from "@/lib/db";
 import { compressImage } from "@/lib/image/compressImage";
@@ -30,6 +31,7 @@ export default function SnapPage() {
   const [sessionId, setSessionId] = useState("");
   const [quizQuestion, setQuizQuestion] = useState("");
   const [quizFeedback, setQuizFeedback] = useState("");
+  const [autoSpeakId, setAutoSpeakId] = useState<string | null>(null);
 
   async function handleFile(file?: File) {
     if (!file) return;
@@ -51,6 +53,7 @@ export default function SnapPage() {
 
   async function readPage() {
     if (!imageBase64) return;
+    primeAudio();
     await askTutor({
       userText: "ഈ പേജ് വായിച്ച് മലയാളത്തിൽ ലളിതമായി വിശദീകരിക്കൂ.",
       imageBase64,
@@ -60,6 +63,7 @@ export default function SnapPage() {
 
   async function sendFollowUp(text = question) {
     if (!text.trim()) return;
+    primeAudio();
     const userMessage = makeMessage("user", text.trim());
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
@@ -116,7 +120,10 @@ export default function SnapPage() {
     setError("");
     let assistantText = "";
     const assistantMessage = makeMessage("assistant", "");
-    if (saveAsMessage) setMessages([...nextMessages, assistantMessage]);
+    if (saveAsMessage) {
+      setMessages([...nextMessages, assistantMessage]);
+      setAutoSpeakId(null);
+    }
 
     try {
       const response = await fetch("/api/tutor", {
@@ -139,6 +146,7 @@ export default function SnapPage() {
       if (saveAsMessage) {
         const finalMessages = [...nextMessages, { ...assistantMessage, content: assistantText }];
         setMessages(finalMessages);
+        if (assistantText.trim()) setAutoSpeakId(assistantMessage.id);
         await persist(finalMessages, quizAttempts);
       }
     } catch {
@@ -228,7 +236,7 @@ export default function SnapPage() {
           <div className="thinking"><span className="thinking__pen" aria-hidden /> {ml.snap.reading}</div>
         ) : null}
 
-        {hasResponse ? <ChatTranscript messages={messages} /> : null}
+        {hasResponse ? <ChatTranscript messages={messages} autoSpeakMessageId={autoSpeakId} /> : null}
 
         {hasResponse ? (
           <section>
