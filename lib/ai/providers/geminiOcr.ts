@@ -32,7 +32,11 @@ export class GeminiOcrProvider implements OcrProvider {
               parts: [
                 {
                   text:
-                    "Extract only the visible Sanskrit/Devanagari text from this textbook page. Preserve line breaks. If unclear, return only what is clear. Do not explain.",
+                    "Extract all the visible Indian-language text from this page. " +
+                    "Write Sanskrit content in Devanagari script (देवनागरी) and Malayalam content in Malayalam script (മലയാളം), exactly as written. " +
+                    "If the page mixes both languages, keep each portion in its own script. " +
+                    "Preserve line breaks. Do not transliterate to Roman/English letters. " +
+                    "If part of the page is unclear, return only what is clear. Do not translate, do not explain.",
                 },
                 {
                   inlineData: {

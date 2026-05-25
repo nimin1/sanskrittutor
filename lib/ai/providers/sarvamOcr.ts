@@ -32,11 +32,13 @@ export class SarvamOcrProvider implements OcrProvider {
     const zip = createStoredZip([{ name: image.fileName, data: image.data }]);
     const zipName = "sanskrit-page.zip";
 
+    /* The page may be Sanskrit (sa-IN), Malayalam (ml-IN), or a mix.
+       "unknown" tells Sarvam to auto-detect rather than forcing one. */
     const job = await this.sarvamFetch<JobResponse>(`${baseUrl}/doc-digitization/job/v1`, {
       method: "POST",
       body: JSON.stringify({
         job_parameters: {
-          language: input.languageHint || "sa-IN",
+          language: input.languageHint || "unknown",
           output_format: "json",
         },
       }),

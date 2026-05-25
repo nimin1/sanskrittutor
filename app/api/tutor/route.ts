@@ -53,27 +53,31 @@ async function prepareTutorRequest(body: TutorRequest): Promise<TutorRequest> {
 
   try {
     const key = cacheKey("ocr", body.imageBase64);
+    /* No languageHint: the page might be Sanskrit, Malayalam, or a mix.
+       Let the OCR providers auto-detect and return each script as-is. */
     const ocr = getCached<{ text: string; provider: string }>(key) ||
       await getOcrProvider().extractText({
         imageBase64: body.imageBase64,
-        languageHint: "sa-IN",
       });
     setCached(key, ocr, 7 * 24 * 60 * 60 * 1000);
 
-    if (!hasSufficientDevanagari(ocr.text)) {
+    if (!hasEnoughIndicText(ocr.text)) {
       return {
         userText: `「അറിയില്ല」 ${ml.errors.photoTooUnclear}`,
         history,
       };
     }
 
+    /* The system prompt already owns the direction logic (Malayalam → Sanskrit
+       or Sanskrit → Malayalam) based on the script of the input. We just hand
+       the OCR text over as the learner's "message" with a short note that it
+       came from a photo, and the don't-invent reminder for unclear portions. */
     return {
       history,
       userText:
-        `ഈ പേജിൽ നിന്ന് വായിച്ച സംസ്കൃത വാചകം താഴെ കൊടുക്കുന്നു. ` +
-        `ഇത് മലയാളത്തിൽ ലളിതമായി പഠിപ്പിക്കൂ. OCR ഉറവിടം: ${ocr.provider}. ` +
-        `പ്രധാനം: ഈ വാചകത്തിൽ ഇല്ലാത്ത ഒന്നും കൂട്ടിച്ചേർക്കരുത്. ` +
-        `വ്യക്തമല്ലാത്ത ഭാഗങ്ങൾ അനുമാനിക്കരുത് — 「അറിയില്ല」 എന്ന് പറയൂ.\n\n${ocr.text}`,
+        `(ഈ വാചകം പുസ്തക പേജിന്റെ ഫോട്ടോയിൽ നിന്ന് വായിച്ചതാണ്. OCR ഉറവിടം: ${ocr.provider}. ` +
+        `വാചകത്തിൽ ഇല്ലാത്തത് കൂട്ടിച്ചേർക്കരുത്; വ്യക്തമല്ലാത്ത ഭാഗങ്ങൾ 「അറിയില്ല」 എന്ന് പറയൂ.)\n\n` +
+        ocr.text,
     };
   } catch {
     if (userText && !isGenericPageReadRequest(userText)) {
@@ -84,15 +88,14 @@ async function prepareTutorRequest(body: TutorRequest): Promise<TutorRequest> {
 }
 
 /**
- * Reject OCR output that has too little Devanagari to be a real Sanskrit page.
- * This stops the tutor from confidently explaining garbage extracted from a
- * blurry photo. Threshold of 15 is intentionally low — most real shlokas have
- * many more Devanagari characters; a typical OCR misfire returns near-zero.
+ * Accept the OCR text if it has enough Devanagari OR Malayalam characters to
+ * plausibly be real page content. A blurry-photo OCR misfire returns near-zero
+ * Indic characters; this stops the tutor from confidently explaining garbage.
  */
-function hasSufficientDevanagari(text: string): boolean {
+function hasEnoughIndicText(text: string): boolean {
   if (!text) return false;
-  const devanagari = text.match(/[ऀ-ॿ]/g);
-  return (devanagari?.length ?? 0) >= 15;
+  const indic = text.match(/[ऀ-ॿഀ-ൿ]/g);
+  return (indic?.length ?? 0) >= 15;
 }
 
 function shouldExtractImageText(userText: string, historyLength: number) {
