@@ -1178,12 +1178,20 @@ img, svg { display: block; max-width: 100%; }
 .photo-editor__stage {
   position: relative;
   width: 100%;
-  height: min(60vh, 440px);
   background: #000;
   border-radius: 2px;
-  overflow: hidden;
   border: 1px solid var(--rule-strong);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  /* Touch handles for the crop rectangle need to be a bit bigger
+     so 69-year-old fingers can grab them on phone glass. */
   touch-action: none;
+}
+.photo-editor__stage .ReactCrop__drag-handle::after {
+  width: 18px;
+  height: 18px;
 }
 .photo-editor__controls {
   display: flex;
