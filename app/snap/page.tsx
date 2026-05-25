@@ -7,6 +7,7 @@ import {
   IconBook, IconCheck, IconLightbulb, IconQuiz, IconRefresh, IconSend,
 } from "@/components/Icons";
 import { MalayalamTextInput } from "@/components/MalayalamTextInput";
+import { PhotoEditor } from "@/components/PhotoEditor";
 import { PhotoPreview } from "@/components/PhotoPreview";
 import { QuizCard } from "@/components/QuizCard";
 import { VoiceInput } from "@/components/VoiceInput";
@@ -20,6 +21,7 @@ import { ml } from "@/lib/i18n/ml";
 export default function SnapPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [editorSrc, setEditorSrc] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [imageBase64, setImageBase64] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
@@ -40,8 +42,20 @@ export default function SnapPage() {
     setQuizAttempts([]);
     setQuizQuestion("");
     setQuizFeedback("");
-    setPreviewUrl(URL.createObjectURL(file));
+    setPreviewUrl("");
+    setImageBase64("");
+    setThumbnailUrl("");
+    /* Send the freshly captured photo into the editor first.
+       compressImage happens after the user confirms their crop/edits. */
+    setEditorSrc(URL.createObjectURL(file));
+  }
+
+  async function confirmEdit(edited: Blob) {
     try {
+      const file = new File([edited], "edited.jpg", { type: edited.type || "image/jpeg" });
+      const objectUrl = URL.createObjectURL(edited);
+      setPreviewUrl(objectUrl);
+      setEditorSrc("");
       const compressed = await compressImage(file);
       setImageBase64(compressed.base64);
       setThumbnailUrl(compressed.thumbnailUrl);
@@ -49,6 +63,11 @@ export default function SnapPage() {
     } catch {
       setError(ml.snap.photoUnclear);
     }
+  }
+
+  function cancelEdit() {
+    setEditorSrc("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function readPage() {
@@ -173,6 +192,7 @@ export default function SnapPage() {
   }
 
   function resetPage() {
+    setEditorSrc("");
     setPreviewUrl("");
     setImageBase64("");
     setThumbnailUrl("");
@@ -186,6 +206,7 @@ export default function SnapPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  const editing = Boolean(editorSrc);
   const hasPreview = Boolean(previewUrl);
   const hasResponse = messages.length > 0;
 
@@ -199,7 +220,18 @@ export default function SnapPage() {
       </header>
 
       <div className="stack stack--lg">
-        {!hasPreview ? (
+        {editing ? (
+          <section className="stack stack--sm">
+            <div className="section-eyebrow">{ml.snap.editor.title}</div>
+            <p className="meta">{ml.snap.editor.hint}</p>
+            <PhotoEditor
+              src={editorSrc}
+              onConfirm={confirmEdit}
+              onCancel={cancelEdit}
+              busy={busy}
+            />
+          </section>
+        ) : !hasPreview ? (
           <label className="capture">
             <span className="capture__mark"><IconBook size={26} /></span>
             <span>

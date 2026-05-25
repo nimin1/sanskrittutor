@@ -40,10 +40,12 @@ export async function POST(request: Request) {
     const audioBase64 = buffer.toString("base64");
 
     const provider = getTranscriptionProvider();
+    /* No languageHint: the learner may speak Malayalam OR Sanskrit and we
+       want providers to auto-detect, so the transcript comes back in the
+       matching script (Malayalam → Malayalam script, Sanskrit → Devanagari). */
     const text = await provider.transcribe({
       audioBase64,
       mimeType,
-      languageHint: "ml",
     });
     if (text.trim()) {
       setCached(key, text.trim(), 24 * 60 * 60 * 1000);

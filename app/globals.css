@@ -1168,6 +1168,47 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* ============================================================
+   PHOTO EDITOR
+   ============================================================ */
+.photo-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.photo-editor__stage {
+  position: relative;
+  width: 100%;
+  height: min(60vh, 440px);
+  background: #000;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  touch-action: none;
+}
+.photo-editor__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.photo-editor__slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.photo-editor__slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  color: var(--ink);
+}
+.photo-editor__slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--madder);
+  height: 28px;
+}
+
+/* ============================================================
    MISC
    ============================================================ */
 .divider { width: 100%; height: 1px; background: var(--rule); border: 0; }

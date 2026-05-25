@@ -69,6 +69,18 @@ export const ml = {
     photoSelected: "വായിക്കാൻ തയ്യാർ",
     actionsLabel: "അടുത്ത പടി",
     followUpLabel: "സംശയം ചോദിക്കൂ",
+    editor: {
+      title: "ഫോട്ടോ ശരിയാക്കൂ",
+      hint: "വേണ്ട ഭാഗം മാത്രം തിരഞ്ഞെടുക്കൂ. വ്യക്തത കൂട്ടാം.",
+      zoom: "വലുപ്പം",
+      straighten: "ചരിച്ച് ശരിയാക്കുക",
+      brightness: "വെളിച്ചം",
+      contrast: "തെളിച്ചം",
+      rotate90: "തിരിക്കുക 90°",
+      reset: "എല്ലാം മാറ്റുക",
+      useThis: "ഇത് ഉപയോഗിക്കുക",
+      processing: "ശരിയാക്കുന്നു...",
+    },
   },
   ask: {
     kicker: "സംശയ പരിഹാരം",

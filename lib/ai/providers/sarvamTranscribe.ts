@@ -26,7 +26,10 @@ export class SarvamTranscriptionProvider implements TranscriptionProvider {
     const form = new FormData();
     form.append("file", base64ToBlob(input.audioBase64, input.mimeType), `audio.${extFor(input.mimeType)}`);
     form.append("model", this.config.model || "saaras:v3");
-    form.append("language_code", input.languageHint === "ml" ? "ml-IN" : input.languageHint || "ml-IN");
+    /* The speaker may use Malayalam OR Sanskrit. "unknown" lets Sarvam
+       auto-detect rather than forcing Malayalam, which would otherwise
+       corrupt Sanskrit speech by trying to render it in Malayalam script. */
+    form.append("language_code", input.languageHint || "unknown");
     form.append("mode", "transcribe");
 
     const response = await fetch(`${this.config.baseUrl || "https://api.sarvam.ai"}/speech-to-text`, {

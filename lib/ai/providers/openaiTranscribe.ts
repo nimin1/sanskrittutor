@@ -26,10 +26,16 @@ export class OpenAITranscriptionProvider implements TranscriptionProvider {
     const form = new FormData();
     form.append("file", base64ToBlob(input.audioBase64, input.mimeType), `audio.${extFor(input.mimeType)}`);
     form.append("model", this.config.model || "gpt-4o-mini-transcribe");
-    form.append("language", input.languageHint || "ml");
+    /* Only pin a language when the caller explicitly asked. Otherwise let
+       Whisper auto-detect, because the speaker may use Malayalam OR Sanskrit. */
+    if (input.languageHint) {
+      form.append("language", input.languageHint);
+    }
     form.append(
       "prompt",
-      "The speaker is asking Sanskrit study questions in Malayalam. Return Malayalam script, and keep Sanskrit terms in Devanagari when clear.",
+      "The speaker may speak Malayalam (മലയാളം) or Sanskrit (संस्कृतम्). " +
+        "Write Malayalam speech in Malayalam script and Sanskrit speech in Devanagari script. " +
+        "Do not use Roman transliteration.",
     );
 
     const response = await fetch(`${this.config.baseUrl || "https://api.openai.com/v1"}/audio/transcriptions`, {

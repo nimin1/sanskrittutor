@@ -12,8 +12,11 @@ type Config = {
  * because the device only needs getUserMedia + MediaRecorder, not
  * Web Speech API.
  *
- * The model is asked to return ONLY the verbatim transcript in
- * Malayalam script (with Devanagari pass-through for Sanskrit terms).
+ * The model is asked to detect whether the speaker is using Malayalam or
+ * Sanskrit and return the verbatim transcript in the matching script:
+ *  - Malayalam speech → Malayalam script (മലയാളം)
+ *  - Sanskrit speech  → Devanagari script (देवनागरी)
+ * A code-mixed sentence keeps each language in its own script.
  */
 export class GeminiTranscriptionProvider implements TranscriptionProvider {
   constructor(private readonly config: Config) {}
@@ -22,8 +25,12 @@ export class GeminiTranscriptionProvider implements TranscriptionProvider {
     const url = `${this.config.baseUrl || "https://generativelanguage.googleapis.com/v1beta"}/models/${this.config.model}:generateContent?key=${this.config.apiKey}`;
 
     const instruction =
-      "Transcribe this audio verbatim. The speaker is speaking Malayalam (മലയാളം). " +
-      "If they use Sanskrit terms, keep them in Devanagari (देवनागरी). " +
+      "Transcribe this audio verbatim. The speaker is either speaking Malayalam (മലയാളം) or Sanskrit (संस्कृतम्). " +
+      "Detect which language they are using and write the transcript in the matching script: " +
+      "Malayalam speech → Malayalam script; Sanskrit speech → Devanagari (देवनागरी) script. " +
+      "If the speaker mixes both languages in one sentence, keep each portion in its own script. " +
+      "NEVER write Sanskrit in Malayalam script and NEVER write Malayalam in Devanagari. " +
+      "NEVER use Roman/English transliteration. " +
       "Return ONLY the transcript — no quotation marks, no preamble, no translation, no commentary. " +
       "If the audio contains no clear speech, return an empty string.";
 
