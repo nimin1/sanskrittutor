@@ -11,6 +11,7 @@ import type { TutorMessage } from "@/lib/ai/types";
 import { primeAudio } from "@/lib/audio/sharedAudio";
 import type { TutorChatMessage } from "@/lib/db";
 import { ml } from "@/lib/i18n/ml";
+import { useChatSession } from "@/lib/useChatSession";
 
 export default function AskPage() {
   const [question, setQuestion] = useState("");
@@ -18,6 +19,7 @@ export default function AskPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [autoSpeakId, setAutoSpeakId] = useState<string | null>(null);
+  const { persist, reset: resetSession } = useChatSession();
 
   async function sendQuestion() {
     const text = question.trim();
@@ -32,6 +34,8 @@ export default function AskPage() {
     setError("");
     setAutoSpeakId(null);
 
+    let assistantText = "";
+    let streamed = false;
     try {
       const response = await fetch("/api/tutor", {
         method: "POST",
@@ -41,18 +45,25 @@ export default function AskPage() {
       if (!response.ok || !response.body) throw new Error("Tutor API failed.");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let assistantText = "";
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         assistantText += decoder.decode(value, { stream: true });
         setMessages([...nextMessages, { ...assistantMessage, content: assistantText }]);
       }
+      assistantText += decoder.decode();
+      setMessages([...nextMessages, { ...assistantMessage, content: assistantText }]);
       if (assistantText.trim()) setAutoSpeakId(assistantMessage.id);
+      streamed = true;
     } catch {
       setError(ml.errors.aiFailed);
     } finally {
       setBusy(false);
+    }
+
+    if (streamed) {
+      try { await persist([...nextMessages, { ...assistantMessage, content: assistantText }]); }
+      catch { setError(ml.errors.saveFailed); }
     }
   }
 
@@ -61,6 +72,7 @@ export default function AskPage() {
     setMessages([]);
     setError("");
     setAutoSpeakId(null);
+    resetSession();
   }
 
   return (

@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { IconHistory } from "@/components/Icons";
 import { ml } from "@/lib/i18n/ml";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
   const onHistory = pathname.startsWith("/history");
+
+  useEffect(() => { void requestPersistentStorage(); }, []);
 
   return (
     <div className="shell">
@@ -34,4 +36,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="shell__main">{children}</main>
     </div>
   );
+}
+
+async function requestPersistentStorage() {
+  if (typeof navigator === "undefined") return;
+  if (!navigator.storage?.persist || !navigator.storage.persisted) return;
+  try {
+    if (await navigator.storage.persisted()) return;
+    await navigator.storage.persist();
+  } catch {
+    /* older browsers: nothing to do — IndexedDB still works, just without the eviction guarantee */
+  }
 }

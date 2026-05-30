@@ -11,6 +11,7 @@ import type { TutorMessage } from "@/lib/ai/types";
 import { useMicAmplitude } from "@/lib/audio/useMicAmplitude";
 import type { TutorChatMessage } from "@/lib/db";
 import { ml } from "@/lib/i18n/ml";
+import { useChatSession } from "@/lib/useChatSession";
 
 type Phase = "idle" | "recording" | "transcribing" | "review";
 
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [voiceSupported, setVoiceSupported] = useState(true);
+  const { persist, reset: resetSession } = useChatSession();
 
   /* Voice flow state */
   const [phase, setPhase] = useState<Phase>("idle");
@@ -183,6 +185,9 @@ export default function HomePage() {
     setMessages([...next, assistantMsg]);
     setBusy(true);
     setError("");
+
+    let full = "";
+    let streamed = false;
     try {
       const res = await fetch("/api/tutor", {
         method: "POST",
@@ -192,17 +197,24 @@ export default function HomePage() {
       if (!res.ok || !res.body) throw new Error("fail");
       const reader = res.body.getReader();
       const dec = new TextDecoder();
-      let full = "";
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         full += dec.decode(value, { stream: true });
         setMessages([...next, { ...assistantMsg, content: full }]);
       }
+      full += dec.decode();
+      setMessages([...next, { ...assistantMsg, content: full }]);
+      streamed = true;
     } catch {
       setError(ml.errors.aiFailed);
     } finally {
       setBusy(false);
+    }
+
+    if (streamed) {
+      try { await persist([...next, { ...assistantMsg, content: full }]); }
+      catch { setError(ml.errors.saveFailed); }
     }
   }
 
@@ -211,6 +223,7 @@ export default function HomePage() {
     updateTranscript("");
     setPhase("idle");
     setError("");
+    resetSession();
   }
 
   const inChat = messages.length > 0;
